@@ -1,4 +1,4 @@
-const apiKey = '5PDKF5X8MQ9JMEKSXFXFKXPYQ';  // <-- Put your WeatherAPI.com API key here
+const apiKey = 'https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/India?unitGroup=us&key=5PDKF5X8MQ9JMEKSXFXFKXPYQ&contentType=json';  // <-- Put your WeatherAPI.com API key here
 
 const form = document.getElementById('weatherForm');
 const cityInput = document.getElementById('cityInput');
