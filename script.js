@@ -1,9 +1,16 @@
-const apiKey = 'dd79e7fa0c55c26211061c00daf304a5'; // Replace with your OpenWeatherMap API key
+const apiKey = '01c912e0e6b7851c207ca58aa393c749'; // <-- Put your OpenWeatherMap API key here
 
-document.getElementById('getWeatherBtn').addEventListener('click', () => {
-  const city = document.getElementById('cityInput').value.trim();
+const form = document.getElementById('weatherForm');
+const cityInput = document.getElementById('cityInput');
+const errorMsg = document.getElementById('errorMsg');
+const currentWeatherDiv = document.getElementById('currentWeather');
+const forecastDiv = document.getElementById('forecast');
+
+form.addEventListener('submit', e => {
+  e.preventDefault();
+  const city = cityInput.value.trim();
   if (!city) {
-    alert('Please enter a city name');
+    showError('Please enter a city name');
     return;
   }
   fetchWeather(city);
@@ -11,18 +18,22 @@ document.getElementById('getWeatherBtn').addEventListener('click', () => {
 
 function fetchWeather(city) {
   clearDisplay();
+  errorMsg.textContent = '';
+
   // Fetch current weather
-  fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`)
+  fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${apiKey}&units=metric`)
     .then(res => {
-      if (!res.ok) throw new Error('City not found');
+      if (!res.ok) throw new Error('City not found. Please check the spelling.');
       return res.json();
     })
     .then(currentData => {
       displayCurrentWeather(currentData);
-      // Fetch 5-day forecast
-      return fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${apiKey}&units=metric`);
+      return fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(city)}&appid=${apiKey}&units=metric`);
     })
-    .then(res => res.json())
+    .then(res => {
+      if (!res.ok) throw new Error('Forecast data not found');
+      return res.json();
+    })
     .then(forecastData => {
       const dailyForecasts = parseDailyForecasts(forecastData);
       displayForecast(dailyForecasts);
@@ -33,10 +44,9 @@ function fetchWeather(city) {
 }
 
 function displayCurrentWeather(data) {
-  const container = document.getElementById('currentWeather');
-  container.innerHTML = `
+  currentWeatherDiv.innerHTML = `
     <h2>${data.name}, ${data.sys.country}</h2>
-    <img src="https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png" alt="${data.weather[0].description}" />
+    <img src="https://openweathermap.org/img/wn/${data.weather[0].icon}@4x.png" alt="${data.weather[0].description}" />
     <p><strong>Temperature:</strong> ${data.main.temp.toFixed(1)} °C</p>
     <p><strong>Humidity:</strong> ${data.main.humidity}%</p>
     <p><strong>Condition:</strong> ${data.weather[0].description}</p>
@@ -56,7 +66,6 @@ function parseDailyForecasts(data) {
     .filter(date => date !== today)
     .slice(0, 5)
     .map(date => {
-      // Pick forecast closest to midday 12:00:00
       const midday = daily[date].find(f => f.dt_txt.includes('12:00:00')) || daily[date][0];
       return {
         date,
@@ -68,27 +77,34 @@ function parseDailyForecasts(data) {
 }
 
 function displayForecast(dailyForecasts) {
-  const container = document.getElementById('forecast');
-  container.innerHTML = '';
+  forecastDiv.innerHTML = '';
   dailyForecasts.forEach(day => {
     const div = document.createElement('div');
     div.classList.add('forecast-day');
     div.innerHTML = `
-      <h4>${day.date}</h4>
+      <h4>${formatDate(day.date)}</h4>
       <img src="https://openweathermap.org/img/wn/${day.icon}@2x.png" alt="${day.weather}" />
       <p><strong>${day.temp} °C</strong></p>
       <p>${day.weather}</p>
     `;
-    container.appendChild(div);
+    forecastDiv.appendChild(div);
   });
 }
 
-function clearDisplay() {
-  document.getElementById('currentWeather').innerHTML = '';
-  document.getElementById('forecast').innerHTML = '';
+function showError(message) {
+  errorMsg.textContent = message;
+  currentWeatherDiv.innerHTML = '';
+  forecastDiv.innerHTML = '';
 }
 
-function showError(message) {
-  clearDisplay();
-  document.getElementById('currentWeather').innerHTML = `<p style="color:red; text-align:center;">${message}</p>`;
+function clearDisplay() {
+  errorMsg.textContent = '';
+  currentWeatherDiv.innerHTML = '';
+  forecastDiv.innerHTML = '';
+}
+
+function formatDate(dateStr) {
+  const options = { weekday: 'short', month: 'short', day: 'numeric' };
+  const dateObj = new Date(dateStr);
+  return dateObj.toLocaleDateString(undefined, options);
 }
