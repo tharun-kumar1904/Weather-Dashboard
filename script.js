@@ -1,4 +1,5 @@
 const apiKey = '35c2c03617934118aadcb0deca17d441';  // <-- Put your WeatherAPI.com API key here
+// <-- Replace with your WeatherAPI.com key
 
 const form = document.getElementById('weatherForm');
 const cityInput = document.getElementById('cityInput');
@@ -30,7 +31,7 @@ async function fetchWeather(city) {
     }
     const data = await res.json();
     displayCurrentWeather(data);
-    displayForecast(data.forecast.forecastday.slice(1, 6)); // next 5 days
+    displayForecast(data.forecast.forecastday.slice(1)); // Skip today, show next 5
   } catch (error) {
     showError(error.message);
   }
