@@ -1,56 +1,94 @@
-// script.js
-const apiKey = "dd79e7fa0c55c26211061c00daf304a5"; // 🔑 Replace with your OpenWeatherMap API key
+const apiKey = 'YOUR_API_KEY_HERE'; // Replace with your OpenWeatherMap API key
 
-function getWeather() {
-  const city = document.getElementById("cityInput").value.trim();
-  const resultBox = document.getElementById("weatherResult");
+document.getElementById('getWeatherBtn').addEventListener('click', () => {
+  const city = document.getElementById('cityInput').value.trim();
   if (!city) {
-    resultBox.innerHTML = "<p>Please enter a city name.</p>";
+    alert('Please enter a city name');
     return;
   }
+  fetchWeather(city);
+});
 
+function fetchWeather(city) {
+  clearDisplay();
   // Fetch current weather
-  fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${apiKey}`)
-    .then(res => res.json())
-    .then(data => {
-      if (data.cod !== 200) {
-        resultBox.innerHTML = `<p>City not found.</p>`;
-        return;
-      }
-      const iconUrl = `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
-      resultBox.innerHTML = `
-        <h2>${data.name}, ${data.sys.country}</h2>
-        <img src="${iconUrl}" alt="${data.weather[0].description}" />
-        <p><strong>Temperature:</strong> ${data.main.temp} °C</p>
-        <p><strong>Humidity:</strong> ${data.main.humidity}%</p>
-        <p><strong>Condition:</strong> ${data.weather[0].description}</p>
-        <h3>5-Day Forecast</h3>
-        <div id="forecast" class="forecast-grid"></div>
-      `;
-
+  fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`)
+    .then(res => {
+      if (!res.ok) throw new Error('City not found');
+      return res.json();
+    })
+    .then(currentData => {
+      displayCurrentWeather(currentData);
       // Fetch 5-day forecast
-      return fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${city}&units=metric&appid=${apiKey}`);
+      return fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${apiKey}&units=metric`);
     })
-    .then(res => res && res.json())
+    .then(res => res.json())
     .then(forecastData => {
-      if (!forecastData || !forecastData.list) return;
-      const forecastDiv = document.getElementById("forecast");
-      // Filter readings at 12:00:00 each day
-      const daily = forecastData.list.filter(item => item.dt_txt.includes("12:00:00"));
-      daily.forEach(day => {
-        const date = new Date(day.dt_txt).toDateString();
-        const icon = `https://openweathermap.org/img/wn/${day.weather[0].icon}@2x.png`;
-        forecastDiv.innerHTML += `
-          <div class="forecast-card">
-            <p><strong>${date}</strong></p>
-            <img src="${icon}" alt="${day.weather[0].description}" />
-            <p>${day.weather[0].description}</p>
-            <p>${day.main.temp} °C</p>
-          </div>
-        `;
-      });
+      const dailyForecasts = parseDailyForecasts(forecastData);
+      displayForecast(dailyForecasts);
     })
-    .catch(() => {
-      document.getElementById("weatherResult").innerHTML = "<p>Error fetching weather data.</p>";
+    .catch(err => {
+      showError(err.message);
     });
+}
+
+function displayCurrentWeather(data) {
+  const container = document.getElementById('currentWeather');
+  container.innerHTML = `
+    <h2>${data.name}, ${data.sys.country}</h2>
+    <img src="https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png" alt="${data.weather[0].description}" />
+    <p><strong>Temperature:</strong> ${data.main.temp.toFixed(1)} °C</p>
+    <p><strong>Humidity:</strong> ${data.main.humidity}%</p>
+    <p><strong>Condition:</strong> ${data.weather[0].description}</p>
+  `;
+}
+
+function parseDailyForecasts(data) {
+  const daily = {};
+  data.list.forEach(item => {
+    const date = item.dt_txt.split(' ')[0];
+    if (!daily[date]) daily[date] = [];
+    daily[date].push(item);
+  });
+
+  const today = new Date().toISOString().split('T')[0];
+  return Object.keys(daily)
+    .filter(date => date !== today)
+    .slice(0, 5)
+    .map(date => {
+      // Pick forecast closest to midday 12:00:00
+      const midday = daily[date].find(f => f.dt_txt.includes('12:00:00')) || daily[date][0];
+      return {
+        date,
+        temp: midday.main.temp.toFixed(1),
+        weather: midday.weather[0].description,
+        icon: midday.weather[0].icon,
+      };
+    });
+}
+
+function displayForecast(dailyForecasts) {
+  const container = document.getElementById('forecast');
+  container.innerHTML = '';
+  dailyForecasts.forEach(day => {
+    const div = document.createElement('div');
+    div.classList.add('forecast-day');
+    div.innerHTML = `
+      <h4>${day.date}</h4>
+      <img src="https://openweathermap.org/img/wn/${day.icon}@2x.png" alt="${day.weather}" />
+      <p><strong>${day.temp} °C</strong></p>
+      <p>${day.weather}</p>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function clearDisplay() {
+  document.getElementById('currentWeather').innerHTML = '';
+  document.getElementById('forecast').innerHTML = '';
+}
+
+function showError(message) {
+  clearDisplay();
+  document.getElementById('currentWeather').innerHTML = `<p style="color:red; text-align:center;">${message}</p>`;
 }
