@@ -1,4 +1,4 @@
-const apiKey = '3b5afd29e97a4d2ca7734313250706';  // <-- Replace this with your actual API key
+const apiKey = '9b522dd6488a4b0eb8e30358250706';  // <-- Put your WeatherAPI.com API key here
 
 const form = document.getElementById('weatherForm');
 const cityInput = document.getElementById('cityInput');
@@ -16,49 +16,52 @@ form.addEventListener('submit', e => {
   fetchWeather(city);
 });
 
-function fetchWeather(city) {
+async function fetchWeather(city) {
   clearDisplay();
   errorMsg.textContent = '';
 
-  // Get current + 5-day forecast from WeatherAPI
-  fetch(`https://api.weatherapi.com/v1/forecast.json?key=${apiKey}&q=${encodeURIComponent(city)}&days=6`)
-    .then(res => {
-      if (!res.ok) throw new Error('Failed to fetch weather data');
-      return res.json();
-    })
-    .then(data => {
-      displayCurrentWeather(data);
-      const next5Days = data.forecast.forecastday.slice(1, 6); // skip today
-      displayForecast(next5Days);
-    })
-    .catch(err => {
-      showError(err.message);
-    });
+  const url = `https://api.weatherapi.com/v1/forecast.json?key=${apiKey}&q=${encodeURIComponent(city)}&days=6&aqi=no&alerts=no`;
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      const errData = await res.json();
+      throw new Error(errData.error?.message || 'Failed to fetch weather data');
+    }
+    const data = await res.json();
+    displayCurrentWeather(data);
+    displayForecast(data.forecast.forecastday.slice(1, 6)); // next 5 days
+  } catch (error) {
+    showError(error.message);
+  }
 }
 
 function displayCurrentWeather(data) {
-  const current = data.current;
-  const location = data.location;
+  const c = data.current;
   currentWeatherDiv.innerHTML = `
-    <h2>${location.name}, ${location.country}</h2>
-    <img src="${current.condition.icon}" alt="${current.condition.text}" />
-    <p><strong>Temperature:</strong> ${current.temp_c} °C</p>
-    <p><strong>Humidity:</strong> ${current.humidity}%</p>
-    <p><strong>Condition:</strong> ${current.condition.text}</p>
-    <p><strong>Local Time:</strong> ${location.localtime}</p>
+    <h2>${data.location.name}, ${data.location.country}</h2>
+    <img src="${c.condition.icon}" alt="${c.condition.text}" />
+    <p><strong>Temperature:</strong> ${c.temp_c.toFixed(1)} °C</p>
+    <p><strong>Humidity:</strong> ${c.humidity}%</p>
+    <p><strong>Condition:</strong> ${c.condition.text}</p>
   `;
 }
 
-function displayForecast(days) {
+function displayForecast(forecastDays) {
   forecastDiv.innerHTML = '';
-  days.forEach(day => {
+  forecastDays.forEach(day => {
+    const dateStr = formatDate(day.date);
+    const icon = day.day.condition.icon;
+    const temp = day.day.avgtemp_c.toFixed(1);
+    const condition = day.day.condition.text;
+
     const div = document.createElement('div');
     div.classList.add('forecast-day');
     div.innerHTML = `
-      <h4>${formatDate(day.date)}</h4>
-      <img src="${day.day.condition.icon}" alt="${day.day.condition.text}" />
-      <p><strong>${day.day.avgtemp_c} °C</strong></p>
-      <p>${day.day.condition.text}</p>
+      <h4>${dateStr}</h4>
+      <img src="${icon}" alt="${condition}" />
+      <p><strong>${temp} °C</strong></p>
+      <p>${condition}</p>
     `;
     forecastDiv.appendChild(div);
   });
@@ -78,5 +81,6 @@ function clearDisplay() {
 
 function formatDate(dateStr) {
   const options = { weekday: 'short', month: 'short', day: 'numeric' };
-  return new Date(dateStr).toLocaleDateString(undefined, options);
+  const dateObj = new Date(dateStr);
+  return dateObj.toLocaleDateString(undefined, options);
 }
