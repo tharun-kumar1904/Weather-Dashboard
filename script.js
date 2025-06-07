@@ -1,4 +1,4 @@
-const apiKey = '01c912e0e6b7851c207ca58aa393c749'; // <-- Put your OpenWeatherMap API key here
+const apiKey = 'd7bf5af44f26577117e3b2bc44695a8a';  // <-- Replace this with your actual API key
 
 const form = document.getElementById('weatherForm');
 const cityInput = document.getElementById('cityInput');
@@ -20,10 +20,13 @@ function fetchWeather(city) {
   clearDisplay();
   errorMsg.textContent = '';
 
-  // Fetch current weather
   fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${apiKey}&units=metric`)
     .then(res => {
-      if (!res.ok) throw new Error('City not found. Please check the spelling.');
+      if (!res.ok) {
+        return res.json().then(data => {
+          throw new Error(data.message || 'Failed to fetch current weather');
+        });
+      }
       return res.json();
     })
     .then(currentData => {
@@ -31,7 +34,11 @@ function fetchWeather(city) {
       return fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(city)}&appid=${apiKey}&units=metric`);
     })
     .then(res => {
-      if (!res.ok) throw new Error('Forecast data not found');
+      if (!res.ok) {
+        return res.json().then(data => {
+          throw new Error(data.message || 'Failed to fetch forecast');
+        });
+      }
       return res.json();
     })
     .then(forecastData => {
@@ -49,7 +56,7 @@ function displayCurrentWeather(data) {
     <img src="https://openweathermap.org/img/wn/${data.weather[0].icon}@4x.png" alt="${data.weather[0].description}" />
     <p><strong>Temperature:</strong> ${data.main.temp.toFixed(1)} °C</p>
     <p><strong>Humidity:</strong> ${data.main.humidity}%</p>
-    <p><strong>Condition:</strong> ${data.weather[0].description}</p>
+    <p><strong>Condition:</strong> ${capitalize(data.weather[0].description)}</p>
   `;
 }
 
@@ -66,6 +73,7 @@ function parseDailyForecasts(data) {
     .filter(date => date !== today)
     .slice(0, 5)
     .map(date => {
+      // Pick forecast at midday if possible
       const midday = daily[date].find(f => f.dt_txt.includes('12:00:00')) || daily[date][0];
       return {
         date,
@@ -85,7 +93,7 @@ function displayForecast(dailyForecasts) {
       <h4>${formatDate(day.date)}</h4>
       <img src="https://openweathermap.org/img/wn/${day.icon}@2x.png" alt="${day.weather}" />
       <p><strong>${day.temp} °C</strong></p>
-      <p>${day.weather}</p>
+      <p>${capitalize(day.weather)}</p>
     `;
     forecastDiv.appendChild(div);
   });
@@ -107,4 +115,8 @@ function formatDate(dateStr) {
   const options = { weekday: 'short', month: 'short', day: 'numeric' };
   const dateObj = new Date(dateStr);
   return dateObj.toLocaleDateString(undefined, options);
+}
+
+function capitalize(text) {
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
